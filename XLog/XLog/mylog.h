@@ -17,15 +17,15 @@ enum LogPrio {
 
 enum tType
 {
-	tLOCAL, //
-	tUTC,
+	tLOCAL, //±¾µØ
+	tUTC, //UTC
 };
 
 enum tStyle
 {
 	tDEFAULT,//%H:%M:%S
 	tAll_1, //%Y-%m-%d %H:%M:%S
-	tAll_2, //
+	tAll_2, //UTC
 };
 
 class mylog
@@ -44,8 +44,5 @@ public:
 	void WriteFormatAllInfo(int prio, const char* tag, tType type, tStyle style, const char* format, ...);
 	size_t GetFileSize();
 	void CreateNewLogFile(char* path);
-	
-private:
 	static char* GetTime(char* buf, size_t len, tType type, tStyle style);
-
 };

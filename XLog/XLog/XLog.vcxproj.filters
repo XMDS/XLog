@@ -21,6 +21,9 @@
     <ClCompile Include="..\..\..\GTA Android Plugin\shared\ini\minIni.c">
       <Filter>ini</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\..\GTA Android Plugin\ARMHook\And64InlineHook\And64InlineHook.cpp">
+      <Filter>ARMHook</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="mylog.h" />

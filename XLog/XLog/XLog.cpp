@@ -10,8 +10,10 @@
 using namespace ARMHook;
 using namespace std;
 
+//时间类型和风格，见mylog.h
 static unsigned int type = tLOCAL;
-static unsigned int style = tDEFAULT;
+static unsigned int style = tDEFAULT; 
+//prio等级 默认0打印信息到XLog默认文件，为-1忽略这个prio的信息不打印，为1为每种prio创建单独的log文件打印信息，共7种prio。
 static int VERBOSE = 0;
 static int DEBUG = 0;
 static int INFO = 0;
@@ -19,12 +21,14 @@ static int WARN = 0;
 static int ERROR = 0;
 static int FATAL = 0;
 static int SILENT = 0;
+
 static int ignores = 0;
 static int addfile = 0;
-typedef std::shared_ptr<mylog> log;
-std::map<int, string> ignore_tag;
-std::map<string, log> log_tag;
-std::map<int, log> log_prio;
+
+typedef std::shared_ptr<mylog> log; //定义智能指针为新的log类型，保存mylog对象
+std::map<int, string> ignore_tag; //忽略任意数量tag，保存的容器。 
+std::map<string, log> log_tag; //添加tag文件的mylog对象保存的容器
+std::map<int, log> log_prio; //添加prio文件的mylog对象保存的容器
 
 int (*org__android_log_write)(int prio, const char* tag, const char* text);
 int (*org__android_log_print)(int prio, const char* tag, const char* fmt, ...);
@@ -55,6 +59,11 @@ inline static int GetLogLevel(int prio)
 	return 0;
 }
 
+inline static void WriteNotes(char* section, char* key, char* text)
+{
+	inireader.WriteString(section, key, text);
+}
+
 void MakeLogPach(char*& pach, const char* name)
 {
 	memset(pach, NULL, 255);
@@ -67,6 +76,7 @@ void print_my_log(int prio, const char* tag, const char* text, bool func_type, v
 {
 	bool tag_check = false;
 	bool add_check = false;
+	static bool remove_check = true;
 
 	if (addfile > 0 && tag) {
 		map<string, log>::iterator iter;
@@ -85,7 +95,8 @@ void print_my_log(int prio, const char* tag, const char* text, bool func_type, v
 		}
 	}
 	int level = GetLogLevel(prio);
-	if (level == 0) {
+
+	if (level == 0) { //默认prio等级，打印日志
 		if (!tag_check) { //如果不忽略tag
 			if (!add_check) { //如果没有添加tag文件
 				func_type ? log_prio[ANDROID_LOG_DEFAULT]->WriteFormatAllInfo(prio, tag, (tType)type, (tStyle)style, text, arg)
@@ -103,8 +114,20 @@ void print_my_log(int prio, const char* tag, const char* text, bool func_type, v
 		return;
 	else if (level == 1) { //根据prio新文件打印
 		if (!tag_check) { //如果不忽略tag
-			func_type ? log_prio[prio]->WriteFormatAllInfo(prio, tag, (tType)type, (tStyle)style, text, arg) 
-				: log_prio[prio]->WriteAllInfo(prio, tag, text, (tType)type, (tStyle)style);
+			if (!add_check) { //如果没有添加tag文件 
+				func_type ? log_prio[prio]->WriteFormatAllInfo(prio, tag, (tType)type, (tStyle)style, text, arg)
+					: log_prio[prio]->WriteAllInfo(prio, tag, text, (tType)type, (tStyle)style); //根据prio新文件打印
+			}
+			else { //如果添加tag文件
+				if (remove_check) { //如果没有删除tag
+					for (auto iter = log_tag.begin(); iter != log_tag.end(); iter++) {
+						remove(iter->second->LogPath); //prio优先级高于tag，当同时开启prio新文件和tag新文件生成时，删除tag创建的新文件
+						remove_check = false; //只删除一次，不用每次进入函数都删除
+					}
+				}
+				func_type ? log_prio[prio]->WriteFormatAllInfo(prio, tag, (tType)type, (tStyle)style, text, arg)
+					: log_prio[prio]->WriteAllInfo(prio, tag, text, (tType)type, (tStyle)style); //根据prio新文件打印
+			}
 		}
 		else
 			return; //忽略这个tag名称的日志，不打印
@@ -182,13 +205,13 @@ static void* my_hook(void* arg)
 	return NULL;
 }
 
-static jstring GetPackageName(JNIEnv* env, jobject jActivity)
+static jstring GetPackageName(JNIEnv* env, jobject jActivity) //获取app包名
 {
 	jmethodID method = env->GetMethodID(env->GetObjectClass(jActivity), "getPackageName", "()Ljava/lang/String;");
 	return (jstring)env->CallObjectMethod(jActivity, method);
 }
 
-static jobject GetGlobalContext(JNIEnv* env)
+static jobject GetGlobalContext(JNIEnv* env) //获取app线程的全局对象
 {
 	jclass activityThread = env->FindClass("android/app/ActivityThread");
 	jmethodID currentActivityThread = env->GetStaticMethodID(activityThread, "currentActivityThread", "()Landroid/app/ActivityThread;");
@@ -198,13 +221,13 @@ static jobject GetGlobalContext(JNIEnv* env)
 	return context;
 }
 
-static jobject GetStorageDir(JNIEnv* env) // /storage/emulated/0 instead of /sdcard (example)
+static jobject GetStorageDir(JNIEnv* env) //获取安卓目录 /storage/emulated/0 instead of /sdcard (example)
 {
 	jclass classEnvironment = env->FindClass("android/os/Environment");
 	return (jstring)env->CallStaticObjectMethod(classEnvironment, env->GetStaticMethodID(classEnvironment, "getExternalStorageDirectory", "()Ljava/io/File;"));
 }
 
-static jstring GetAbsolutePath(JNIEnv* env, jobject jFile)
+static jstring GetAbsolutePath(JNIEnv* env, jobject jFile) //转换为绝对路径
 {
 	jmethodID method = env->GetMethodID(env->GetObjectClass(jFile), "getAbsolutePath", "()Ljava/lang/String;");
 	return (jstring)env->CallObjectMethod(jFile, method);
@@ -223,14 +246,15 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 	char LogPach[255], iniPach[255];
 	sprintf(LogPach, "%s/Android/data/%s/XLog.log", pach, name);
 	sprintf(iniPach, "%s/Android/data/%s/XLog.ini", pach, name);
-	static mylog lg(LogPach);
-	log_prio[ANDROID_LOG_UNKNOWN] = log(&lg);
-	log_prio[ANDROID_LOG_DEFAULT] = log(&lg);
 	inireader.SetIniPath(iniPach);
 	if (access(iniPach, F_OK) == -1) {
+		WriteNotes(NULL, "### XLog", "1.0 ### by: XMDS ###\n");
 		inireader.WriteBoolean("XLog", "Enable", true);
+		WriteNotes("XLog", "# (default Enable", "1) Set to enable or disable XLog. use 'y','Y','t','T','1' set Enable, 'n','N','f','F','0' is disable.\n");
 		inireader.WriteInteger("Time", "Type", type);
+		WriteNotes("Time", "# (default Type", "0) Set the time type for printing log. 0 is LOCAL, 1 is UTC.\n");
 		inireader.WriteInteger("Time", "Style", style);
+		WriteNotes("Time", "# (default Style", "0) Set the time style for printing log. 0 is hour:minute:second, 1 is year-month-day hour:minute:second, 2 is UTC Style.\n");
 		inireader.WriteInteger("Filter", "VERBOSE", VERBOSE);
 		inireader.WriteInteger("Filter", "DEBUG", DEBUG);
 		inireader.WriteInteger("Filter", "INFO", INFO);
@@ -238,10 +262,22 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 		inireader.WriteInteger("Filter", "ERROR", ERROR);
 		inireader.WriteInteger("Filter", "FATAL", FATAL);
 		inireader.WriteInteger("Filter", "SILENT", SILENT);
+		WriteNotes("Filter", "# (default Prio", "0) Set the log to filter text at the Prio level (7 levels in total).\n# 0 is means no filtering, and all are printed to the XLog.log file by default.\n# -1 is to filter the text of this level, do not print.\n# 1 To create a new XLog[Prio].log file, print the text separately.\n# Example: INFO = 1. See: XLog[INFO].log\n");
 		inireader.WriteInteger("Filter", "IgnoreNumTag", ignores);
+		inireader.WriteString("Filter", "IgnoreTag1", "");
+		inireader.WriteString("Filter", "IgnoreTag2", "");
+		inireader.WriteString("Filter", "IgnoreTag3", "");
+		WriteNotes("Filter", "# (default IgnoreNumTag", "0) Set the log to ignore messages with Tag names. 'IgnoreNumTag' sets the number of tag names that need to be ignored, and the option 'IgnoreTagID' at the back sets the tag names you want to ignore. The ID number increases in turn. The number of settings depends on 'IgnoreNumTag', which has no limit.\n# Example: IgnoreNumTag = 10, IgnoreTag1 = AndroidModLoader ... See: XLog will no longer print messages with the Tag name set above.\n");
 		inireader.WriteInteger("Filter", "AddFileNumTag", addfile);
+		inireader.WriteString("Filter", "AddFileTag1", "");
+		inireader.WriteString("Filter", "AddFileTag2", "");
+		inireader.WriteString("Filter", "AddFileTag3", "");
+		WriteNotes("Filter", "# (default AddFileNumTag", "0) Set to create a new log file with a separate [Tag] name to print the text. 'AddFileNumTag' sets the number of [tag].log files you need to add, and then 'AddFileTagID' sets the tag name, and the number ID gradually increases. The number of files added depends on the number set by 'AddFileNumTag', which theoretically has no upper limit.\n# Example: AddFileNumTag = 10, AddFileTag1 = AB ... AddFileTag10 = AndroidModLoader, See: XLog-[AB].log, XLog-[AndroidModLoader].log, ...\n");
 	}
 	if (inireader.ReadBoolean("XLog", "Enable", false)) {
+		static mylog lg(LogPach); //多余的写法，为什么不直接new到容器里。哈哈
+		log_prio[ANDROID_LOG_UNKNOWN] = log(&lg);
+		log_prio[ANDROID_LOG_DEFAULT] = log(&lg);
 		type = inireader.ReadInteger("Time", "Type", type);
 		style = inireader.ReadInteger("Time", "Style", style);
 		
@@ -280,23 +316,29 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 		static char tag[128], buf[255], fmt[255];
 		for (int i = 0; i < ignores; i++) {
 			sprintf(tag, "IgnoreTag%d", i + 1);
-			ignore_tag[i] = inireader.ReadString("Filter", tag, NULL, buf, sizeof(buf));
+			ignore_tag[i] = inireader.ReadString("Filter", tag, NULL, buf, 255);
 		}
 		for (int i = 0; i < addfile; i++) {
 			sprintf(tag, "AddFileTag%d", i + 1);
-			char* str = inireader.ReadString("Filter", tag, NULL, buf, sizeof(buf));
+			char* str = inireader.ReadString("Filter", tag, NULL, buf, 255);
 			sprintf(fmt, "-[%s].log", str);
 			MakeLogPach(log_pach, fmt);
-			lg.WriteFormat("%s", str);
 			log_tag[str] = log(new mylog(log_pach));
 		}
+		
+		char t1[255], t2[255];
+		lg.Write("XLog 1.0 by: XMDS");
+		lg.Write("Open Source: https://github.com/XMDS/XLog.git");
+		lg.WriteFormat("Current Time: LOCAL: %s (UTC: %s)", lg.GetTime(t1, sizeof(t1), tLOCAL, tAll_1), lg.GetTime(t2, sizeof(t2), tUTC, tAll_2));
+		lg.Write("");
+
 		pthread_t id;
 		pthread_create(&id, NULL, &my_hook, NULL);
+
+		delete log_pach;
 	}
-	
 	env->ReleaseStringUTFChars(PackageName, name);
 	env->ReleaseStringUTFChars(StoragePach, pach);
-
-
+	
 	return JNI_VERSION_1_6;
 }

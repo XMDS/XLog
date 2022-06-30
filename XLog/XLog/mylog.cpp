@@ -44,6 +44,7 @@ void mylog::Write(const char* text)
 	}
 	fputs(text, fLog);
 	fputs("\n", fLog);
+	fflush(fLog);
 }
 
 void mylog::WriteFormat(const char* format, va_list arg)
@@ -81,8 +82,11 @@ char* mylog::GetTime(char* buf, size_t len, tType type, tStyle style)
 		strftime(buf, len, "%H:%M:%S", time);
 	else if (style == tAll_1)
 		strftime(buf, len, "%Y-%m-%d %H:%M:%S", time);
-	else if (style == tAll_2)
-		buf = asctime(time);
+	else if (style == tAll_2) {
+		char* t = asctime(time);
+		t[strlen(t) - 1] = '\0';
+		sprintf(buf, "%s", t);
+	}
 	else 
 		return nullptr;
 	
