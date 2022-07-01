@@ -24,6 +24,7 @@ static int SILENT = 0;
 
 static int ignores = 0;
 static int addfile = 0;
+static bool log_test = false;
 
 typedef std::shared_ptr<mylog> log; //定义智能指针为新的log类型，保存mylog对象
 std::map<int, string> ignore_tag; //忽略任意数量tag，保存的容器。 
@@ -203,12 +204,12 @@ static void* my_hook(void* arg)
 	CHook::Inline((void*)__android_log_vprint, (void*)My__android_log_vprint, (void**)&org__android_log_vprint);
 	CHook::Inline((void*)__android_log_assert, (void*)My__android_log_assert, (void**)&org__android_log_assert);
 	
-	while (inireader.ReadBoolean("XLog", "Test", false))
+	while (log_test)
 	{
-		log_prio[ANDROID_LOG_DEFAULT]->WriteAllInfo(LOG_INFO, "XLog", "test init...", tLOCAL, tDEFAULT);
-		__android_log_write(ANDROID_LOG_DEBUG, "XLog", "'__android_log_write' test");
+		log_prio[ANDROID_LOG_DEFAULT]->WriteAllInfo(LOG_INFO, "XLog-Test", "test init...", tLOCAL, tDEFAULT);
+		__android_log_write(ANDROID_LOG_DEBUG, "XLog-Test", "'__android_log_write' test");
 		for (int i = 0; i < 9; i++)
-			__android_log_print(i, "XLog", "'__android_log_print %d' test", i);
+			__android_log_print(i, "XLog-Test", "'__android_log_print %d' test", i);
 	}
 	return NULL;
 }
@@ -259,7 +260,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 		WriteNotes(NULL, "### XLog", "1.0 ### by: XMDS ###\n");
 		inireader.WriteBoolean("XLog", "Enable", true);
 		WriteNotes("XLog", "# (default Enable", "1) Set to enable or disable XLog. use 'y','Y','t','T','1' set Enable, 'n','N','f','F','0' is disable.\n");
-		inireader.WriteBoolean("XLog", "Test", false);
+		inireader.WriteBoolean("XLog", "Test", log_test);
 		WriteNotes("XLog", "# (default Test", "0) Sets the XLog test text on and off. It is used for unknown app debugging. The log file will print the test text with the Tag name [XLog]. You can set 'AddFileTag1 = XLog' to view the test text alone. use 'y','Y','t','T','1' set Enable, 'n','N','f','F','0' is disable.\n");
 		inireader.WriteInteger("Time", "Type", type);
 		WriteNotes("Time", "# (default Type", "0) Set the time type for printing log. 0 is LOCAL, 1 is UTC.\n");
@@ -285,6 +286,8 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 		WriteNotes("Filter", "# (default AddFileNumTag", "0) Set to create a new log file with a separate [Tag] name to print the text. 'AddFileNumTag' sets the number of [tag].log files you need to add, and then 'AddFileTagID' sets the tag name, and the number ID gradually increases. The number of files added depends on the number set by 'AddFileNumTag', which theoretically has no upper limit.\n# Example: AddFileNumTag = 10, AddFileTag1 = AB ... AddFileTag10 = AndroidModLoader, See: XLog-[AB].log, XLog-[AndroidModLoader].log, ...\n");
 	}
 	if (inireader.ReadBoolean("XLog", "Enable", false)) {
+		log_test = inireader.ReadBoolean("XLog", "Test", log_test);
+		
 		static mylog lg(LogPach); //多余的写法，为什么不直接new到容器里。哈哈
 		log_prio[ANDROID_LOG_UNKNOWN] = log(&lg);
 		log_prio[ANDROID_LOG_DEFAULT] = log(&lg);
