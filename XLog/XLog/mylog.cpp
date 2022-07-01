@@ -85,7 +85,7 @@ char* mylog::GetTime(char* buf, size_t len, tType type, tStyle style)
 	else if (style == tAll_2) {
 		char* t = asctime(time);
 		t[strlen(t) - 1] = '\0';
-		sprintf(buf, "%s", t);
+		strcpy(buf, t);
 	}
 	else 
 		return nullptr;

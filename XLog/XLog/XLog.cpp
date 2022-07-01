@@ -198,10 +198,18 @@ void My__android_log_assert(const char* cond, const char* tag, const char* fmt, 
 
 static void* my_hook(void* arg)
 {
-	CHook::Internal((void*)__android_log_write, (void*)My__android_log_write, (void**)&org__android_log_write);
-	CHook::Internal((void*)__android_log_print, (void*)My__android_log_print, (void**)&org__android_log_print);
-	CHook::Internal((void*)__android_log_vprint, (void*)My__android_log_vprint, (void**)&org__android_log_vprint);
-	CHook::Internal((void*)__android_log_assert, (void*)My__android_log_assert, (void**)&org__android_log_assert);
+	CHook::Inline((void*)__android_log_write, (void*)My__android_log_write, (void**)&org__android_log_write);
+	CHook::Inline((void*)__android_log_print, (void*)My__android_log_print, (void**)&org__android_log_print);
+	CHook::Inline((void*)__android_log_vprint, (void*)My__android_log_vprint, (void**)&org__android_log_vprint);
+	CHook::Inline((void*)__android_log_assert, (void*)My__android_log_assert, (void**)&org__android_log_assert);
+	
+	while (inireader.ReadBoolean("XLog", "Test", false))
+	{
+		log_prio[ANDROID_LOG_DEFAULT]->WriteAllInfo(LOG_INFO, "XLog", "test init...", tLOCAL, tDEFAULT);
+		__android_log_write(ANDROID_LOG_DEBUG, "XLog", "'__android_log_write' test");
+		for (int i = 0; i < 9; i++)
+			__android_log_print(i, "XLog", "'__android_log_print %d' test", i);
+	}
 	return NULL;
 }
 
@@ -251,6 +259,8 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 		WriteNotes(NULL, "### XLog", "1.0 ### by: XMDS ###\n");
 		inireader.WriteBoolean("XLog", "Enable", true);
 		WriteNotes("XLog", "# (default Enable", "1) Set to enable or disable XLog. use 'y','Y','t','T','1' set Enable, 'n','N','f','F','0' is disable.\n");
+		inireader.WriteBoolean("XLog", "Test", false);
+		WriteNotes("XLog", "# (default Test", "0) Sets the XLog test text on and off. It is used for unknown app debugging. The log file will print the test text with the Tag name [XLog]. You can set 'AddFileTag1 = XLog' to view the test text alone. use 'y','Y','t','T','1' set Enable, 'n','N','f','F','0' is disable.\n");
 		inireader.WriteInteger("Time", "Type", type);
 		WriteNotes("Time", "# (default Type", "0) Set the time type for printing log. 0 is LOCAL, 1 is UTC.\n");
 		inireader.WriteInteger("Time", "Style", style);
@@ -313,14 +323,14 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 		
 		ignores = inireader.ReadInteger("Filter", "IgnoreNumTag", ignores);
 		addfile = inireader.ReadInteger("Filter", "AddFileNumTag", addfile);
-		static char tag[128], buf[255], fmt[255];
+		char tag[32], buf[255], fmt[255];
 		for (int i = 0; i < ignores; i++) {
 			sprintf(tag, "IgnoreTag%d", i + 1);
-			ignore_tag[i] = inireader.ReadString("Filter", tag, NULL, buf, 255);
+			ignore_tag[i] = inireader.ReadString("Filter", tag, NULL, buf, sizeof(buf));
 		}
 		for (int i = 0; i < addfile; i++) {
 			sprintf(tag, "AddFileTag%d", i + 1);
-			char* str = inireader.ReadString("Filter", tag, NULL, buf, 255);
+			char* str = inireader.ReadString("Filter", tag, NULL, buf, sizeof(buf));
 			sprintf(fmt, "-[%s].log", str);
 			MakeLogPach(log_pach, fmt);
 			log_tag[str] = log(new mylog(log_pach));
@@ -334,7 +344,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 
 		pthread_t id;
 		pthread_create(&id, NULL, &my_hook, NULL);
-
+		
 		delete log_pach;
 	}
 	env->ReleaseStringUTFChars(PackageName, name);
