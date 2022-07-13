@@ -204,13 +204,11 @@ static void* my_hook(void* arg)
 	CHook::Inline((void*)__android_log_vprint, (void*)My__android_log_vprint, (void**)&org__android_log_vprint);
 	CHook::Inline((void*)__android_log_assert, (void*)My__android_log_assert, (void**)&org__android_log_assert);
 	
-	while (log_test)
-	{
-		log_prio[ANDROID_LOG_DEFAULT]->WriteAllInfo(LOG_INFO, "XLog-Test", "test init...", tLOCAL, tDEFAULT);
-		__android_log_write(ANDROID_LOG_DEBUG, "XLog-Test", "'__android_log_write' test");
-		for (int i = 0; i < 9; i++)
-			__android_log_print(i, "XLog-Test", "'__android_log_print %d' test", i);
-	}
+	log_prio[ANDROID_LOG_DEFAULT]->WriteAllInfo(LOG_INFO, "XTest", "test init...", tLOCAL, tDEFAULT);
+	__android_log_write(ANDROID_LOG_DEBUG, "XTest", "'__android_log_write' test");
+	for (int i = 0; i < 9; i++)
+		__android_log_print(i, "XTest", "'__android_log_print %d' test", i);
+
 	return NULL;
 }
 
@@ -261,7 +259,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 		inireader.WriteBoolean("XLog", "Enable", true);
 		WriteNotes("XLog", "# (default Enable", "1) Set to enable or disable XLog. use 'y','Y','t','T','1' set Enable, 'n','N','f','F','0' is disable.\n");
 		inireader.WriteBoolean("XLog", "Test", log_test);
-		WriteNotes("XLog", "# (default Test", "0) Sets the XLog test text on and off. It is used for unknown app debugging. The log file will print the test text with the Tag name [XLog-Test]. You can set 'AddFileTag1 = XLog-Test' to view the test text alone. use 'y','Y','t','T','1' set Enable, 'n','N','f','F','0' is disable.\n");
+		WriteNotes("XLog", "# (default Test", "0) Sets the XLog test text on and off. It is used for unknown app debugging. The log file will print the test text with the Tag name [XTest]. You can set 'AddFileTag1 = XTest' to view the test text alone. use 'y','Y','t','T','1' set Enable, 'n','N','f','F','0' is disable.\n");
 		inireader.WriteInteger("Time", "Type", type);
 		WriteNotes("Time", "# (default Type", "0) Set the time type for printing log. 0 is LOCAL, 1 is UTC.\n");
 		inireader.WriteInteger("Time", "Style", style);
