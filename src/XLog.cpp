@@ -4,8 +4,8 @@
 #include <map>
 #include <memory>
 #include "mylog.h"
-#include "ARMHook/CHook.h"
-#include "shared/ini/inireader.h"
+#include "CHook.h"
+#include "inireader.h"
 
 using namespace ARMHook;
 using namespace std;
@@ -26,10 +26,10 @@ static int ignores = 0;
 static int addfile = 0;
 static bool log_test = false;
 
-typedef std::shared_ptr<mylog> log; //定义智能指针为新的log类型，保存mylog对象
+typedef std::shared_ptr<mylog> logs; //定义智能指针为新的log类型，保存mylog对象
 std::map<int, string> ignore_tag; //忽略任意数量tag，保存的容器。 
-std::map<string, log> log_tag; //添加tag文件的mylog对象保存的容器
-std::map<int, log> log_prio; //添加prio文件的mylog对象保存的容器
+std::map<string, logs> log_tag; //添加tag文件的mylog对象保存的容器
+std::map<int, logs> log_prio; //添加prio文件的mylog对象保存的容器
 
 int (*org__android_log_write)(int prio, const char* tag, const char* text);
 int (*org__android_log_print)(int prio, const char* tag, const char* fmt, ...);
@@ -80,7 +80,7 @@ void print_my_log(int prio, const char* tag, const char* text, bool func_type, v
 	static bool remove_check = true;
 
 	if (addfile > 0 && tag) {
-		map<string, log>::iterator iter;
+		map<string, logs>::iterator iter;
 		for (iter = log_tag.begin(); iter != log_tag.end(); iter++) {
 			if (strcasecmp(iter->first.c_str(), tag) == 0) {
 				add_check = true; //添加tag log文件
@@ -261,7 +261,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 		inireader.WriteBoolean("XLog", "Enable", true);
 		WriteNotes("XLog", "# (default Enable", "1) Set to enable or disable XLog. use 'y','Y','t','T','1' set Enable, 'n','N','f','F','0' is disable.\n");
 		inireader.WriteBoolean("XLog", "Test", log_test);
-		WriteNotes("XLog", "# (default Test", "0) Sets the XLog test text on and off. It is used for unknown app debugging. The log file will print the test text with the Tag name [XLog]. You can set 'AddFileTag1 = XLog' to view the test text alone. use 'y','Y','t','T','1' set Enable, 'n','N','f','F','0' is disable.\n");
+		WriteNotes("XLog", "# (default Test", "0) Sets the XLog test text on and off. It is used for unknown app debugging. The log file will print the test text with the Tag name [XLog-Test]. You can set 'AddFileTag1 = XLog-Test' to view the test text alone. use 'y','Y','t','T','1' set Enable, 'n','N','f','F','0' is disable.\n");
 		inireader.WriteInteger("Time", "Type", type);
 		WriteNotes("Time", "# (default Type", "0) Set the time type for printing log. 0 is LOCAL, 1 is UTC.\n");
 		inireader.WriteInteger("Time", "Style", style);
@@ -289,39 +289,39 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 		log_test = inireader.ReadBoolean("XLog", "Test", log_test);
 		
 		static mylog lg(LogPach); //多余的写法，为什么不直接new到容器里。哈哈
-		log_prio[ANDROID_LOG_UNKNOWN] = log(&lg);
-		log_prio[ANDROID_LOG_DEFAULT] = log(&lg);
+		log_prio[ANDROID_LOG_UNKNOWN] = logs(&lg);
+		log_prio[ANDROID_LOG_DEFAULT] = logs(&lg);
 		type = inireader.ReadInteger("Time", "Type", type);
 		style = inireader.ReadInteger("Time", "Style", style);
 		
 		static char* log_pach = new char[255];
 		if ((VERBOSE = inireader.ReadInteger("Filter", "VERBOSE", VERBOSE)) == 1) {
 			MakeLogPach(log_pach, "[VERBOSE].log");
-			log_prio[ANDROID_LOG_VERBOSE] = log(new mylog(log_pach));
+			log_prio[ANDROID_LOG_VERBOSE] = logs(new mylog(log_pach));
 		}
 		if ((DEBUG = inireader.ReadInteger("Filter", "DEBUG", DEBUG)) == 1) {
 			MakeLogPach(log_pach, "[DEBUG].log");
-			log_prio[ANDROID_LOG_DEBUG] = log(new mylog(log_pach));
+			log_prio[ANDROID_LOG_DEBUG] = logs(new mylog(log_pach));
 		}
 		if ((INFO = inireader.ReadInteger("Filter", "INFO", INFO)) == 1) {
 			MakeLogPach(log_pach, "[INFO].log");
-			log_prio[ANDROID_LOG_INFO] = log(new mylog(log_pach));
+			log_prio[ANDROID_LOG_INFO] = logs(new mylog(log_pach));
 		}
 		if ((WARN = inireader.ReadInteger("Filter", "WARN", WARN)) == 1) {
 			MakeLogPach(log_pach, "[WARN].log");
-			log_prio[ANDROID_LOG_WARN] = log(new mylog(log_pach));
+			log_prio[ANDROID_LOG_WARN] = logs(new mylog(log_pach));
 		}
 		if ((ERROR = inireader.ReadInteger("Filter", "ERROR", ERROR)) == 1) {
 			MakeLogPach(log_pach, "[ERROR].log");
-			log_prio[ANDROID_LOG_ERROR] = log(new mylog(log_pach));
+			log_prio[ANDROID_LOG_ERROR] = logs(new mylog(log_pach));
 		}
 		if ((FATAL = inireader.ReadInteger("Filter", "FATAL", FATAL)) == 1) {
 			MakeLogPach(log_pach, "[FATAL].log");
-			log_prio[ANDROID_LOG_FATAL] = log(new mylog(log_pach));
+			log_prio[ANDROID_LOG_FATAL] = logs(new mylog(log_pach));
 		}
 		if ((SILENT = inireader.ReadInteger("Filter", "SILENT", SILENT)) == 1) {
 			MakeLogPach(log_pach, "[SILENTL].log");
-			log_prio[ANDROID_LOG_SILENT] = log(new mylog(log_pach));
+			log_prio[ANDROID_LOG_SILENT] = logs(new mylog(log_pach));
 		}
 		
 		ignores = inireader.ReadInteger("Filter", "IgnoreNumTag", ignores);
@@ -336,7 +336,7 @@ JNIEXPORT jint JNI_OnLoad(JavaVM* vm, void* reserved)
 			char* str = inireader.ReadString("Filter", tag, NULL, buf, sizeof(buf));
 			sprintf(fmt, "-[%s].log", str);
 			MakeLogPach(log_pach, fmt);
-			log_tag[str] = log(new mylog(log_pach));
+			log_tag[str] = logs(new mylog(log_pach));
 		}
 		
 		char t1[255], t2[255];
