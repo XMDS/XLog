@@ -43,7 +43,6 @@ project "XLog" -- 项目名称
 
     includedirs { -- 头文件目录（实际是包含目录）
         "../../ARMHook",
-        "../../ARMHook/Include",
         "../ini"
     }
 
