@@ -43,7 +43,7 @@ project "XLog" -- 项目名称
 
     includedirs { -- 头文件目录（实际是包含目录）
         "../../ARMHook",
-        "../ini"
+        "../"
     }
 
     filter "platforms:ARM" -- arm模式的配置

@@ -5,7 +5,7 @@
 #include <memory>
 #include "mylog.h"
 #include "CHook.h"
-#include "inireader.h"
+#include "ini/inireader.h"
 
 using namespace ARMHook;
 using namespace std;
@@ -204,10 +204,12 @@ static void* my_hook(void* arg)
 	CHook::Inline((void*)__android_log_vprint, (void*)My__android_log_vprint, (void**)&org__android_log_vprint);
 	CHook::Inline((void*)__android_log_assert, (void*)My__android_log_assert, (void**)&org__android_log_assert);
 	
-	log_prio[ANDROID_LOG_DEFAULT]->WriteAllInfo(LOG_INFO, "XTest", "test init...", tLOCAL, tDEFAULT);
-	__android_log_write(ANDROID_LOG_DEBUG, "XTest", "'__android_log_write' test");
-	for (int i = 0; i < 9; i++)
-		__android_log_print(i, "XTest", "'__android_log_print %d' test", i);
+	if (log_test) {
+		log_prio[ANDROID_LOG_DEFAULT]->WriteAllInfo(LOG_INFO, "XTest", "test init...", tLOCAL, tDEFAULT);
+		__android_log_write(ANDROID_LOG_DEBUG, "XTest", "'__android_log_write' test");
+		for (int i = 0; i < 9; i++)
+			__android_log_print(i, "XTest", "'__android_log_print %d' test", i);
+	}
 
 	return NULL;
 }
